@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Religare - Perguntas Rápidas</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .buttons-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-quick {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-think {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .response {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .response.sim {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .response.nao {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .response.nao-sei {
+            background: #fff9c4;
+            color: #f57f17;
+        }
+
+        .response.reformule {
+            background: #e1bee7;
+            color: #7b1fa2;
+        }
+
+        .response.empty {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        .history {
+            margin-top: 30px;
+        }
+
+        .history h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .history-content {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .history-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .history-question {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .history-answer {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .history-meta {
+            color: #999;
+            font-size: 0.8em;
+            margin-top: 4px;
+        }
+
+        .empty-history {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        function App() {
+            const [question, setQuestion] = useState('');
+            const [response, setResponse] = useState('');
+            const [history, setHistory] = useState([]);
+            const [isProcessing, setIsProcessing] = useState(false);
+
+            // Função para determinar a resposta baseada no número aleatório
+            const getResponseFromNumber = (number) => {
+                if (number >= 0 && number <= 24) {
+                    return 'Sim';
+                } else if (number >= 25 && number <= 49) {
+                    return 'Não';
+                } else if (number >= 50 && number <= 74) {
+                    return 'Não Sei';
+                } else if (number >= 75 && number <= 100) {
+                    return 'Reformule a pergunta';
+                }
+            };
+
+            // Função para obter a classe CSS da resposta
+            const getResponseClass = (responseText) => {
+                if (!responseText) return 'empty';
+                const normalized = responseText.toLowerCase().replace(/\s/g, '-');
+                return normalized;
+            };
+
+            // Modo: Resposta Rápida
+            const handleQuickAnswer = () => {
+                if (!question.trim()) {
+                    alert('Por favor, digite uma pergunta.');
+                    return;
+                }
+
+                setIsProcessing(true);
+                
+                // Simular um pequeno delay para melhor UX
+                setTimeout(() => {
+                    const randomNumber = Math.floor(Math.random() * 101);
+                    const answer = getResponseFromNumber(randomNumber);
+                    
+                    const historyItem = {
+                        date: new Date().toLocaleString('pt-BR'),
+                        question: question.trim(),
+                        answer: answer,
+                        mode: 'Resposta rápida'
+                    };
+
+                    setResponse(answer);
+                    setHistory([...history, historyItem]);
+                    setIsProcessing(false);
+                }, 300);
+            };
+
+            // Modo: Pensar e Responder
+            const handleThinkAndAnswer = () => {
+                if (!question.trim()) {
+                    alert('Por favor, digite uma pergunta.');
+                    return;
+                }
+
+                setIsProcessing(true);
+                
+                // Simular processamento
+                setTimeout(() => {
+                    // Gerar 1000 números aleatórios
+                    const counts = {
+                        'Sim': 0,
+                        'Não': 0,
+                        'Não Sei': 0,
+                        'Reformule a pergunta': 0
+                    };
+
+                    for (let i = 0; i < 1000; i++) {
+                        const randomNumber = Math.floor(Math.random() * 101);
+                        const answer = getResponseFromNumber(randomNumber);
+                        counts[answer]++;
+                    }
+
+                    // Encontrar a resposta com maior contagem
+                    let maxCount = 0;
+                    let finalAnswer = 'Sim';
+                    for (const [answer, count] of Object.entries(counts)) {
+                        if (count > maxCount) {
+                            maxCount = count;
+                            finalAnswer = answer;
+                        }
+                    }
+
+                    const historyItem = {
+                        date: new Date().toLocaleString('pt-BR'),
+                        question: question.trim(),
+                        answer: finalAnswer,
+                        mode: 'Pensar e responder'
+                    };
+
+                    setResponse(finalAnswer);
+                    setHistory([...history, historyItem]);
+                    setIsProcessing(false);
+                }, 500);
+            };
+
+            // Gerar relatório CSV
+            const handleExportCSV = () => {
+                if (history.length === 0) {
+                    alert('Não há histórico para exportar.');
+                    return;
+                }
+
+                // Cabeçalho do CSV
+                const headers = ['Data da pergunta', 'Pergunta', 'Resposta', 'Modo de execução usado'];
+                
+                // Linhas do CSV
+                const rows = history.map(item => [
+                    `"${item.date}"`,
+                    `"${item.question.replace(/"/g, '""')}"`,
+                    `"${item.answer}"`,
+                    `"${item.mode}"`
+                ]);
+
+                // Combinar cabeçalho e linhas
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.join(','))
+                ].join('\n');
+
+                // Criar blob e download
+                const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `relatorio_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            return (
+                <div className="container">
+                    <h1>Religare - Perguntas Rápidas</h1>
+                    
+                    <div className="input-group">
+                        <label htmlFor="question">Digite sua pergunta:</label>
+                        <input
+                            id="question"
+                            type="text"
+                            value={question}
+                            onChange={(e) => setQuestion(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter' && !isProcessing) {
+                                    handleQuickAnswer();
+                                }
+                            }}
+                            placeholder="Ex: Devo aceitar essa proposta?"
+                            disabled={isProcessing}
+                        />
+                    </div>
+
+                    <div className="buttons-group">
+                        <button
+                            className="btn-quick"
+                            onClick={handleQuickAnswer}
+                            disabled={isProcessing || !question.trim()}
+                        >
+                            Resposta Rápida
+                        </button>
+                        <button
+                            className="btn-think"
+                            onClick={handleThinkAndAnswer}
+                            disabled={isProcessing || !question.trim()}
+                        >
+                            Pensar e Responder
+                        </button>
+                    </div>
+
+                    <div className={`response ${getResponseClass(response)}`}>
+                        {response || 'Aguardando pergunta...'}
+                    </div>
+
+                    <div className="history">
+                        <h2>Histórico de Perguntas</h2>
+                        <div className="history-content">
+                            {history.length === 0 ? (
+                                <div className="empty-history">
+                                    Nenhuma pergunta realizada ainda.
+                                </div>
+                            ) : (
+                                history.map((item, index) => (
+                                    <div key={index} className="history-item">
+                                        <div className="history-question">
+                                            {item.question}
+                                        </div>
+                                        <div className="history-answer">
+                                            <strong>Resposta:</strong> {item.answer}
+                                        </div>
+                                        <div className="history-meta">
+                                            {item.date} • {item.mode}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <button
+                        className="btn-export"
+                        onClick={handleExportCSV}
+                        disabled={history.length === 0}
+                    >
+                        Exportar Relatório CSV
+                    </button>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
