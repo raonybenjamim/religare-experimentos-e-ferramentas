@@ -38,10 +38,71 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        .wrapper {
-            max-width: 640px;
+        .layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            max-width: 1100px;
             margin: 0 auto;
             padding: clamp(2rem, 8vw, 4rem) 1.5rem;
+            align-items: start;
+        }
+
+        .main {
+            flex: 1 1 360px;
+            min-width: 0;
+        }
+
+        .sidebar {
+            flex: 0 1 280px;
+            min-width: 0;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .ref-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .ref-card {
+            display: block;
+            padding: 0.75rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 10px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .ref-card:hover {
+            border-color: rgba(94, 184, 232, 0.4);
+            background: rgba(94, 184, 232, 0.08);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 12px var(--glow);
+        }
+
+        .ref-card:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--glow);
+        }
+
+        .ref-cards-loading,
+        .ref-cards-error {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            padding: 0.5rem 0;
         }
 
         header {
@@ -131,7 +192,8 @@
     </style>
 </head>
 <body>
-    <div class="wrapper">
+    <div class="layout">
+        <main class="main">
         <header>
             <img src="TCI - Religare Logo.png" alt="Religare TCI" class="logo-img" width="160" height="160">
             <h1 class="logo-text">Religare</h1>
@@ -151,6 +213,42 @@
         <footer>
             Religare — Experimentos e ferramentas de TCI. Repositório de código aberto.
         </footer>
+        </main>
+
+        <aside class="sidebar">
+            <h2 class="sidebar-title">Artigos de referência</h2>
+            <div id="ref-cards" class="ref-cards" aria-live="polite">
+                <span class="ref-cards-loading">Carregando…</span>
+            </div>
+        </aside>
     </div>
+
+    <script>
+        (function () {
+            var container = document.getElementById('ref-cards');
+            fetch('reference-articles.json')
+                .then(function (r) {
+                    if (!r.ok) throw new Error(r.statusText);
+                    return r.json();
+                })
+                .then(function (items) {
+                    if (!Array.isArray(items) || items.length === 0) {
+                        container.innerHTML = '<span class="ref-cards-error">Nenhum artigo no momento.</span>';
+                        container.className = 'ref-cards';
+                        return;
+                    }
+                    container.innerHTML = items.map(function (item) {
+                        var title = (item.title || 'Artigo').replace(/</g, '&lt;');
+                        var url = (item.url || '#').replace(/"/g, '&quot;');
+                        return '<a href="' + url + '" class="ref-card" target="_blank" rel="noopener noreferrer">' + title + '</a>';
+                    }).join('');
+                    container.className = 'ref-cards';
+                })
+                .catch(function () {
+                    container.innerHTML = '<span class="ref-cards-error">Não foi possível carregar os artigos.</span>';
+                    container.className = 'ref-cards';
+                });
+        })();
+    </script>
 </body>
 </html>
