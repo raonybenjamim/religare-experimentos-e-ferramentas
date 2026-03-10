@@ -223,31 +223,48 @@
         </aside>
     </div>
 
+    <script type="application/json" id="reference-articles-fallback">[
+    {"title": "Artigo 1", "url": "https://www.google.com"},
+    {"title": "Artigo 2", "url": "https://www.google.com"},
+    {"title": "Artigo 3", "url": "https://www.google.com"}
+]</script>
     <script>
         (function () {
             var container = document.getElementById('ref-cards');
+
+            function render(items) {
+                if (!Array.isArray(items) || items.length === 0) {
+                    container.innerHTML = '<span class="ref-cards-error">Nenhum artigo no momento.</span>';
+                    container.className = 'ref-cards';
+                    return;
+                }
+                container.innerHTML = items.map(function (item) {
+                    var title = (item.title || 'Artigo').replace(/</g, '&lt;');
+                    var url = (item.url || '#').replace(/"/g, '&quot;');
+                    return '<a href="' + url + '" class="ref-card" target="_blank" rel="noopener noreferrer">' + title + '</a>';
+                }).join('');
+                container.className = 'ref-cards';
+            }
+
+            function useFallback() {
+                var el = document.getElementById('reference-articles-fallback');
+                if (el && el.textContent) {
+                    try {
+                        render(JSON.parse(el.textContent));
+                        return;
+                    } catch (e) {}
+                }
+                container.innerHTML = '<span class="ref-cards-error">Não foi possível carregar os artigos.</span>';
+                container.className = 'ref-cards';
+            }
+
             fetch('reference-articles.json')
                 .then(function (r) {
                     if (!r.ok) throw new Error(r.statusText);
                     return r.json();
                 })
-                .then(function (items) {
-                    if (!Array.isArray(items) || items.length === 0) {
-                        container.innerHTML = '<span class="ref-cards-error">Nenhum artigo no momento.</span>';
-                        container.className = 'ref-cards';
-                        return;
-                    }
-                    container.innerHTML = items.map(function (item) {
-                        var title = (item.title || 'Artigo').replace(/</g, '&lt;');
-                        var url = (item.url || '#').replace(/"/g, '&quot;');
-                        return '<a href="' + url + '" class="ref-card" target="_blank" rel="noopener noreferrer">' + title + '</a>';
-                    }).join('');
-                    container.className = 'ref-cards';
-                })
-                .catch(function () {
-                    container.innerHTML = '<span class="ref-cards-error">Não foi possível carregar os artigos.</span>';
-                    container.className = 'ref-cards';
-                });
+                .then(render)
+                .catch(useFallback);
         })();
     </script>
 </body>
