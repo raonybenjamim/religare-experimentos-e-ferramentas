@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Religare - Perguntas Rápidas</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .buttons-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-quick {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .response {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .response.sim {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .response.nao {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .response.nao-sei {
+            background: #fff9c4;
+            color: #f57f17;
+        }
+
+        .response.reformule {
+            background: #e1bee7;
+            color: #7b1fa2;
+        }
+
+        .response.empty {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        .response-details {
+            width: 100%;
+            margin-top: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.65);
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 12px;
+            text-align: left;
+        }
+
+        .response-details .detail-item {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .response-details .detail-label {
+            font-weight: 800;
+            color: rgba(0, 0, 0, 0.75);
+        }
+
+        .meta-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(0, 0, 0, 0.55);
+        }
+
+        @media (max-width: 600px) {
+            .response-details {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .history {
+            margin-top: 30px;
+        }
+
+        .history h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .history-content {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .history-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .history-question {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .history-answer {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .history-meta {
+            color: #999;
+            font-size: 0.8em;
+            margin-top: 4px;
+        }
+
+        .empty-history {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+
+        .tutorial {
+            margin-top: 24px;
+            border-top: 1px solid #eee;
+            padding-top: 16px;
+        }
+
+        .tutorial details {
+            background: #f9f9f9;
+            border: 1px solid #e6e6e6;
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+
+        .tutorial summary {
+            cursor: pointer;
+            list-style: none;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .tutorial summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .tutorial .chevron {
+            flex: 0 0 auto;
+            width: 18px;
+            height: 18px;
+            border-right: 3px solid #667eea;
+            border-bottom: 3px solid #667eea;
+            transform: rotate(45deg);
+            transition: transform 0.2s ease;
+            margin-left: auto;
+        }
+
+        .tutorial details[open] .chevron {
+            transform: rotate(225deg);
+        }
+
+        .tutorial-content {
+            margin-top: 12px;
+            color: #555;
+            line-height: 1.55;
+            font-size: 0.98em;
+        }
+
+        .tutorial-content ul {
+            margin: 10px 0 0 18px;
+        }
+
+        .tutorial-content li {
+            margin: 8px 0;
+        }
+
+        .tutorial-content .hint {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: white;
+            border: 1px dashed #d6d6d6;
+            border-radius: 8px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                padding: 20px;
+                border-radius: 14px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 20px;
+            }
+
+            .buttons-group {
+                flex-direction: column;
+            }
+
+            .response {
+                font-size: 20px;
+                padding: 16px;
+            }
+
+            .history-content {
+                padding: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        function App() {
+            const [question, setQuestion] = useState('');
+            const [result, setResult] = useState(null);
+            const [history, setHistory] = useState([]);
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [runs, setRuns] = useState(1000);
+            const [lastQuestion, setLastQuestion] = useState('');
+
+            // Função para determinar a resposta baseada no número aleatório
+            const getResponseFromNumber = (number) => {
+                if (number >= 0 && number <= 24) {
+                    return 'Sim';
+                } else if (number >= 25 && number <= 49) {
+                    return 'Não';
+                } else if (number >= 50 && number <= 74) {
+                    return 'Não Sei';
+                } else if (number >= 75 && number <= 100) {
+                    return 'Reformule a pergunta';
+                }
+            };
+
+            // Função para obter a classe CSS da resposta
+            const getResponseClass = (responseText) => {
+                if (!responseText) return 'empty';
+                const normalized = responseText.toLowerCase().replace(/\s/g, '-');
+                return normalized;
+            };
+
+            const parseRuns = (value) => {
+                const n = Number(value);
+                if (!Number.isFinite(n)) return 1;
+                return Math.max(1, Math.min(100000, Math.floor(n)));
+            };
+
+            const formatPct = (value) => {
+                if (!Number.isFinite(value)) return '0%';
+                return `${value.toFixed(1).replace('.', ',')}%`;
+            };
+
+            const computeStats = (totalRuns) => {
+                const counts = {
+                    'Sim': 0,
+                    'Não': 0,
+                    'Não Sei': 0,
+                    'Reformule a pergunta': 0
+                };
+
+                for (let i = 0; i < totalRuns; i++) {
+                    const randomNumber = Math.floor(Math.random() * 101);
+                    const answer = getResponseFromNumber(randomNumber);
+                    counts[answer]++;
+                }
+
+                const percentages = Object.fromEntries(
+                    Object.entries(counts).map(([answer, count]) => [answer, (count / totalRuns) * 100])
+                );
+
+                let winner = 'Sim';
+                let max = -1;
+                for (const [answer, count] of Object.entries(counts)) {
+                    if (count > max) {
+                        max = count;
+                        winner = answer;
+                    }
+                }
+
+                return { totalRuns, counts, percentages, winner };
+            };
+
+            // Único modo: levantamento estatístico (equivalente ao "resposta rápida", repetido N vezes)
+            const handleAnswer = () => {
+                if (!question.trim()) {
+                    alert('Por favor, digite uma pergunta.');
+                    return;
+                }
+
+                setIsProcessing(true);
+                
+                // Simular um pequeno delay para melhor UX
+                setTimeout(() => {
+                    const totalRuns = parseRuns(runs);
+                    const stats = computeStats(totalRuns);
+                    
+                    const historyItem = {
+                        date: new Date().toLocaleString('pt-BR'),
+                        question: question.trim(),
+                        totalRuns: stats.totalRuns,
+                        winner: stats.winner,
+                        counts: stats.counts,
+                        percentages: stats.percentages,
+                        mode: 'Levantamento estatístico'
+                    };
+
+                    setResult(stats);
+                    setLastQuestion(historyItem.question);
+                    setHistory([...history, historyItem]);
+                    setIsProcessing(false);
+                }, 300);
+            };
+
+            // Gerar relatório CSV
+            const handleExportCSV = () => {
+                if (history.length === 0) {
+                    alert('Não há histórico para exportar.');
+                    return;
+                }
+
+                // Cabeçalho do CSV
+                const headers = [
+                    'Data da pergunta',
+                    'Pergunta',
+                    'Execuções',
+                    'Vencedora',
+                    'Sim (%)',
+                    'Não (%)',
+                    'Não Sei (%)',
+                    'Reformule a pergunta (%)',
+                    'Modo de execução usado'
+                ];
+                
+                // Linhas do CSV
+                const rows = history.map(item => [
+                    `"${item.date}"`,
+                    `"${item.question.replace(/"/g, '""')}"`,
+                    `"${item.totalRuns}"`,
+                    `"${item.winner}"`,
+                    `"${(item.percentages?.['Sim'] ?? 0).toFixed(2).replace('.', ',')}"`,
+                    `"${(item.percentages?.['Não'] ?? 0).toFixed(2).replace('.', ',')}"`,
+                    `"${(item.percentages?.['Não Sei'] ?? 0).toFixed(2).replace('.', ',')}"`,
+                    `"${(item.percentages?.['Reformule a pergunta'] ?? 0).toFixed(2).replace('.', ',')}"`,
+                    `"${item.mode}"`
+                ]);
+
+                // Combinar cabeçalho e linhas
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.join(','))
+                ].join('\n');
+
+                // Criar blob e download
+                const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `relatorio_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            return (
+                <div className="container">
+                    <h1>Religare - Perguntas Rápidas</h1>
+                    
+                    <div className="input-group">
+                        <label htmlFor="question">Digite sua pergunta:</label>
+                        <input
+                            id="question"
+                            type="text"
+                            value={question}
+                            onChange={(e) => setQuestion(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter' && !isProcessing) {
+                                    handleAnswer();
+                                }
+                            }}
+                            placeholder="Ex: Devo aceitar essa proposta?"
+                            disabled={isProcessing}
+                        />
+                    </div>
+
+                    <div className="input-group">
+                        <label htmlFor="runs">Quantidade de execuções (para estatística):</label>
+                        <input
+                            id="runs"
+                            type="number"
+                            min="1"
+                            max="100000"
+                            step="1"
+                            value={runs}
+                            onChange={(e) => setRuns(parseRuns(e.target.value))}
+                            disabled={isProcessing}
+                        />
+                    </div>
+
+                    <div className="buttons-group">
+                        <button
+                            className="btn-quick"
+                            onClick={handleAnswer}
+                            disabled={isProcessing || !question.trim()}
+                        >
+                            Responder
+                        </button>
+                    </div>
+
+                    <div className={`response ${getResponseClass(result?.winner || '')}`}>
+                        <div>
+                            {result?.winner || 'Aguardando pergunta...'}
+                        </div>
+                        {result ? (
+                            <>
+                                <div className="meta-row">
+                                    <span>Pergunta: {lastQuestion}</span>
+                                    <span>{result.totalRuns.toLocaleString('pt-BR')} execuções</span>
+                                </div>
+                                <div className="response-details" aria-label="Percentuais por resposta">
+                                    <div className="detail-item">
+                                        <div className="detail-label">Sim</div>
+                                        <div>{formatPct(result.percentages['Sim'])}</div>
+                                    </div>
+                                    <div className="detail-item">
+                                        <div className="detail-label">Não</div>
+                                        <div>{formatPct(result.percentages['Não'])}</div>
+                                    </div>
+                                    <div className="detail-item">
+                                        <div className="detail-label">Não Sei</div>
+                                        <div>{formatPct(result.percentages['Não Sei'])}</div>
+                                    </div>
+                                    <div className="detail-item">
+                                        <div className="detail-label">Reformule a pergunta</div>
+                                        <div>{formatPct(result.percentages['Reformule a pergunta'])}</div>
+                                    </div>
+                                </div>
+                            </>
+                        ) : null}
+                    </div>
+
+                    <div className="history">
+                        <h2>Histórico de Perguntas</h2>
+                        <div className="history-content">
+                            {history.length === 0 ? (
+                                <div className="empty-history">
+                                    Nenhuma pergunta realizada ainda.
+                                </div>
+                            ) : (
+                                history.map((item, index) => (
+                                    <div key={index} className="history-item">
+                                        <div className="history-question">
+                                            {item.question}
+                                        </div>
+                                        <div className="history-answer">
+                                            <strong>Resultado:</strong> {item.winner} • {item.totalRuns.toLocaleString('pt-BR')} execuções
+                                            <div style={{ marginTop: '6px', fontSize: '0.9em', color: '#666' }}>
+                                                Sim: {formatPct(item.percentages?.['Sim'] ?? 0)} • Não: {formatPct(item.percentages?.['Não'] ?? 0)} • Não Sei: {formatPct(item.percentages?.['Não Sei'] ?? 0)} • Reformule: {formatPct(item.percentages?.['Reformule a pergunta'] ?? 0)}
+                                            </div>
+                                        </div>
+                                        <div className="history-meta">
+                                            {item.date} • {item.mode}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <button
+                        className="btn-export"
+                        onClick={handleExportCSV}
+                        disabled={history.length === 0}
+                    >
+                        Exportar Relatório CSV
+                    </button>
+
+                    <div className="tutorial">
+                        <details>
+                            <summary>
+                                Tutorial rápido (clique para abrir)
+                                <span className="chevron" aria-hidden="true"></span>
+                            </summary>
+                            <div className="tutorial-content">
+                                <p>
+                                    Esta página serve para você fazer uma pergunta e obter um levantamento estatístico das respostas (tipo “oráculo”),
+                                    repetindo o mesmo processo várias vezes.
+                                </p>
+                                <ul>
+                                    <li>
+                                        <strong>1) Digite sua pergunta</strong> no campo (ex.: “Devo aceitar essa proposta?”).
+                                    </li>
+                                    <li>
+                                        <strong>2) Defina a quantidade de execuções</strong> (ex.: 1000) para gerar as porcentagens por tipo de resposta.
+                                    </li>
+                                    <li>
+                                        <strong>3) Clique em “Responder”</strong> para rodar o levantamento.
+                                    </li>
+                                    <li>
+                                        <strong>4) Veja o resultado</strong>: a resposta “vencedora” e as porcentagens de Sim / Não / Não Sei / Reformule a pergunta.
+                                    </li>
+                                    <li>
+                                        <strong>5) Acompanhe o histórico</strong> das perguntas e resultados logo abaixo.
+                                    </li>
+                                    <li>
+                                        <strong>6) Exporte o relatório</strong> em CSV usando o botão “Exportar Relatório CSV” (quando houver histórico).
+                                    </li>
+                                </ul>
+                                <div className="hint">
+                                    Dica: você também pode apertar <strong>Enter</strong> para executar “Responder”.
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
