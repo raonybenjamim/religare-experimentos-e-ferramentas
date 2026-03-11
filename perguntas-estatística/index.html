@@ -170,6 +170,11 @@
             color: #999;
         }
 
+        .response.resposta-inconclusiva {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+
         .response-details {
             width: 100%;
             margin-top: 8px;
@@ -426,14 +431,11 @@
                     Object.entries(counts).map(([answer, count]) => [answer, (count / totalRuns) * 100])
                 );
 
-                let winner = 'Sim';
-                let max = -1;
-                for (const [answer, count] of Object.entries(counts)) {
-                    if (count > max) {
-                        max = count;
-                        winner = answer;
-                    }
-                }
+                const sortedByCount = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                const [winnerAnswer, winnerCount] = sortedByCount[0];
+                const [, secondCount] = sortedByCount[1];
+                const diffPct = ((winnerCount - secondCount) / totalRuns) * 100;
+                const winner = diffPct < 1 ? 'Resposta inconclusiva' : winnerAnswer;
 
                 return { totalRuns, counts, percentages, winner };
             };
@@ -658,6 +660,8 @@
                                     </li>
                                     <li>
                                         <strong>4) Veja o resultado</strong>: a resposta “vencedora” e as porcentagens de Sim / Não / Não Sei / Reformule a pergunta.
+                                        Se a diferença entre a resposta vencedora e o segundo lugar for menor que <strong>1 ponto percentual</strong>,
+                                        o resultado será <strong>“Resposta inconclusiva”</strong>.
                                     </li>
                                     <li>
                                         <strong>5) Acompanhe o histórico</strong> das perguntas e resultados logo abaixo.
