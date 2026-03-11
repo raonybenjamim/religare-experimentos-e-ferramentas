@@ -212,6 +212,103 @@
             color: #999;
             padding: 20px;
         }
+
+        .tutorial {
+            margin-top: 24px;
+            border-top: 1px solid #eee;
+            padding-top: 16px;
+        }
+
+        .tutorial details {
+            background: #f9f9f9;
+            border: 1px solid #e6e6e6;
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+
+        .tutorial summary {
+            cursor: pointer;
+            list-style: none;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .tutorial summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .tutorial .chevron {
+            flex: 0 0 auto;
+            width: 18px;
+            height: 18px;
+            border-right: 3px solid #667eea;
+            border-bottom: 3px solid #667eea;
+            transform: rotate(45deg);
+            transition: transform 0.2s ease;
+            margin-left: auto;
+        }
+
+        .tutorial details[open] .chevron {
+            transform: rotate(225deg);
+        }
+
+        .tutorial-content {
+            margin-top: 12px;
+            color: #555;
+            line-height: 1.55;
+            font-size: 0.98em;
+        }
+
+        .tutorial-content ul {
+            margin: 10px 0 0 18px;
+        }
+
+        .tutorial-content li {
+            margin: 8px 0;
+        }
+
+        .tutorial-content .hint {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: white;
+            border: 1px dashed #d6d6d6;
+            border-radius: 8px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                padding: 20px;
+                border-radius: 14px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 20px;
+            }
+
+            .buttons-group {
+                flex-direction: column;
+            }
+
+            .response {
+                font-size: 20px;
+                padding: 16px;
+            }
+
+            .history-content {
+                padding: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -433,6 +530,49 @@
                     >
                         Exportar Relatório CSV
                     </button>
+
+                    <div className="tutorial">
+                        <details>
+                            <summary>
+                                Tutorial rápido (clique para abrir)
+                                <span className="chevron" aria-hidden="true"></span>
+                            </summary>
+                            <div className="tutorial-content">
+                                <p>
+                                    Esta página serve para você fazer uma pergunta e receber uma resposta rápida (tipo “oráculo”).
+                                    Você pode usar um dos dois modos abaixo.
+                                </p>
+                                <ul>
+                                    <li>
+                                        <strong>1) Digite sua pergunta</strong> no campo (ex.: “Devo aceitar essa proposta?”).
+                                    </li>
+                                    <li>
+                                        <strong>2) Escolha um modo</strong>:
+                                        <ul>
+                                            <li>
+                                                <strong>Resposta Rápida</strong>: gera uma resposta única imediatamente.
+                                            </li>
+                                            <li>
+                                                <strong>Pensar e Responder</strong>: simula “pensar” (faz várias tentativas) e retorna a resposta mais frequente.
+                                            </li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>3) Veja a resposta</strong> no quadro colorido.
+                                    </li>
+                                    <li>
+                                        <strong>4) Acompanhe o histórico</strong> de perguntas e respostas logo abaixo.
+                                    </li>
+                                    <li>
+                                        <strong>5) Exporte o relatório</strong> em CSV usando o botão “Exportar Relatório CSV” (quando houver histórico).
+                                    </li>
+                                </ul>
+                                <div className="hint">
+                                    Dica: você também pode apertar <strong>Enter</strong> para executar a “Resposta Rápida”.
+                                </div>
+                            </div>
+                        </details>
+                    </div>
                 </div>
             );
         }
