@@ -400,7 +400,7 @@
             const parseRuns = (value) => {
                 const n = Number(value);
                 if (!Number.isFinite(n)) return 1;
-                return Math.max(1, Math.min(100000, Math.floor(n)));
+                return Math.max(1, Math.min(1000000, Math.floor(n)));
             };
 
             const formatPct = (value) => {
@@ -524,7 +524,7 @@
 
             return (
                 <div className="container">
-                    <h1>Religare - Perguntas Rápidas</h1>
+                    <h1>Religare - Perguntas em lote</h1>
                     
                     <div className="input-group">
                         <label htmlFor="question">Digite sua pergunta:</label>
@@ -549,7 +549,7 @@
                             id="runs"
                             type="number"
                             min="1"
-                            max="100000"
+                            max="1000000"
                             step="1"
                             value={runs}
                             onChange={(e) => setRuns(parseRuns(e.target.value))}
