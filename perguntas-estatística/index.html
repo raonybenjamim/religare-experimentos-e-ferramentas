@@ -433,11 +433,27 @@
 
                 const sortedByCount = Object.entries(counts).sort((a, b) => b[1] - a[1]);
                 const [winnerAnswer, winnerCount] = sortedByCount[0];
-                const [, secondCount] = sortedByCount[1];
-                const diffPct = ((winnerCount - secondCount) / totalRuns) * 100;
-                const winner = diffPct < 1 ? 'Resposta inconclusiva' : winnerAnswer;
+                const optionsCount = Object.keys(counts).length;
+                const expectedProbabilityPct = 100 / optionsCount;
+                const conclusivenessThresholdBoostPct = 5;
+                const conclusivenessThresholdPct = expectedProbabilityPct + conclusivenessThresholdBoostPct;
+                const winnerPct = (winnerCount / totalRuns) * 100;
+                const isConclusive = winnerPct >= conclusivenessThresholdPct;
+                const winner = isConclusive ? winnerAnswer : 'Resposta inconclusiva';
+                const category = isConclusive ? 'Conclusiva' : 'Inconclusiva';
 
-                return { totalRuns, counts, percentages, winner };
+                return {
+                    totalRuns,
+                    counts,
+                    percentages,
+                    winner,
+                    category,
+                    winnerAnswer,
+                    winnerPct,
+                    expectedProbabilityPct,
+                    conclusivenessThresholdBoostPct,
+                    conclusivenessThresholdPct
+                };
             };
 
             // Único modo: levantamento estatístico (equivalente ao "resposta rápida", repetido N vezes)
@@ -459,6 +475,12 @@
                         question: question.trim(),
                         totalRuns: stats.totalRuns,
                         winner: stats.winner,
+                        category: stats.category,
+                        winnerAnswer: stats.winnerAnswer,
+                        winnerPct: stats.winnerPct,
+                        expectedProbabilityPct: stats.expectedProbabilityPct,
+                        conclusivenessThresholdBoostPct: stats.conclusivenessThresholdBoostPct,
+                        conclusivenessThresholdPct: stats.conclusivenessThresholdPct,
                         counts: stats.counts,
                         percentages: stats.percentages,
                         mode: 'Levantamento estatístico'
@@ -484,6 +506,12 @@
                     'Pergunta',
                     'Execuções',
                     'Vencedora',
+                    'Categoria estatística',
+                    'Resposta mais frequente (bruta)',
+                    'Percentual da mais frequente (%)',
+                    'Probabilidade esperada por alternativa (%)',
+                    'Limiar adicional para conclusão (pp)',
+                    'Limiar conclusivo final (%)',
                     'Sim (%)',
                     'Não (%)',
                     'Não Sei (%)',
@@ -497,6 +525,12 @@
                     `"${item.question.replace(/"/g, '""')}"`,
                     `"${item.totalRuns}"`,
                     `"${item.winner}"`,
+                    `"${item.category ?? ''}"`,
+                    `"${item.winnerAnswer ?? ''}"`,
+                    `"${(item.winnerPct ?? 0).toFixed(2).replace('.', ',')}"`,
+                    `"${(item.expectedProbabilityPct ?? 0).toFixed(2).replace('.', ',')}"`,
+                    `"${(item.conclusivenessThresholdBoostPct ?? 0).toFixed(2).replace('.', ',')}"`,
+                    `"${(item.conclusivenessThresholdPct ?? 0).toFixed(2).replace('.', ',')}"`,
                     `"${(item.percentages?.['Sim'] ?? 0).toFixed(2).replace('.', ',')}"`,
                     `"${(item.percentages?.['Não'] ?? 0).toFixed(2).replace('.', ',')}"`,
                     `"${(item.percentages?.['Não Sei'] ?? 0).toFixed(2).replace('.', ',')}"`,
@@ -579,6 +613,16 @@
                                     <span>Pergunta: {lastQuestion}</span>
                                     <span>{result.totalRuns.toLocaleString('pt-BR')} execuções</span>
                                 </div>
+                                <div className="meta-row">
+                                    <span>Categoria: {result.category}</span>
+                                    <span>
+                                        Limiar: {formatPct(result.conclusivenessThresholdPct)} (25% + {formatPct(result.conclusivenessThresholdBoostPct)})
+                                    </span>
+                                </div>
+                                <div className="meta-row">
+                                    <span>Mais frequente (bruta): {result.winnerAnswer}</span>
+                                    <span>Ocorrência: {formatPct(result.winnerPct)}</span>
+                                </div>
                                 <div className="response-details" aria-label="Percentuais por resposta">
                                     <div className="detail-item">
                                         <div className="detail-label">Sim</div>
@@ -616,6 +660,9 @@
                                         </div>
                                         <div className="history-answer">
                                             <strong>Resultado:</strong> {item.winner} • {item.totalRuns.toLocaleString('pt-BR')} execuções
+                                            <div style={{ marginTop: '6px', fontSize: '0.9em', color: '#666' }}>
+                                                Categoria: {item.category} • Mais frequente: {item.winnerAnswer} ({formatPct(item.winnerPct ?? 0)}) • Limiar: {formatPct(item.conclusivenessThresholdPct ?? 30)}
+                                            </div>
                                             <div style={{ marginTop: '6px', fontSize: '0.9em', color: '#666' }}>
                                                 Sim: {formatPct(item.percentages?.['Sim'] ?? 0)} • Não: {formatPct(item.percentages?.['Não'] ?? 0)} • Não Sei: {formatPct(item.percentages?.['Não Sei'] ?? 0)} • Reformule: {formatPct(item.percentages?.['Reformule a pergunta'] ?? 0)}
                                             </div>
@@ -660,8 +707,9 @@
                                     </li>
                                     <li>
                                         <strong>4) Veja o resultado</strong>: a resposta “vencedora” e as porcentagens de Sim / Não / Não Sei / Reformule a pergunta.
-                                        Se a diferença entre a resposta vencedora e o segundo lugar for menor que <strong>1 ponto percentual</strong>,
-                                        o resultado será <strong>“Resposta inconclusiva”</strong>.
+                                        A regra de conclusão usa valor esperado por chance: como há 4 alternativas, o esperado é <strong>25%</strong> para cada uma.
+                                        Aplicamos um limiar adicional de <strong>5 pontos percentuais</strong>, então uma resposta só é eleita se a mais frequente tiver
+                                        pelo menos <strong>30%</strong> de ocorrência. Caso contrário, o resultado será <strong>“Resposta inconclusiva”</strong>.
                                     </li>
                                     <li>
                                         <strong>5) Acompanhe o histórico</strong> das perguntas e resultados logo abaixo.
