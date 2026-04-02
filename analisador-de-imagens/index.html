@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel — Analisador de Presença</title>
+    <!-- Fallbacks CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --text-main: #212529;
+            --text-muted: #6c757d;
+            --border: #dee2e6;
+            
+            /* Status Colors */
+            --color-inactive: #adb5bd;
+            --color-calibrating: #4dabf7;
+            --color-stable: #51cf66;
+            --color-detect: #ff922b;
+            --color-alert: #fa5252;
+            --color-error: #868e96;
+
+            --font-ui: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-ui);
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--text-main); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Main Display Area */
+        .display-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 3rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Circle */
+        .circle-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .indicator-circle {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 3px solid var(--color-inactive);
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            color: var(--color-inactive);
+        }
+
+        /* Circle States */
+        .circ-inactive { border-color: var(--color-inactive); }
+        .circ-calibrating {
+            border-color: var(--color-calibrating);
+            border-top-color: transparent;
+            animation: spin 1.5s linear infinite;
+        }
+        .circ-calibrating-inner {
+            color: var(--color-calibrating);
+            animation: pulse-op 1.5s ease-in-out infinite;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .circ-stable {
+            border-color: transparent;
+            background-color: rgba(81, 207, 102, 0.15);
+            box-shadow: 0 0 0 4px rgba(81, 207, 102, 0.3);
+            animation: breathe 3s alternate infinite ease-in-out;
+        }
+        .circ-detect {
+            border-color: transparent;
+            background-color: var(--color-detect);
+            box-shadow: 0 0 20px var(--color-detect);
+            transition: none;
+        }
+        .circ-alert {
+            border-color: transparent;
+            background-color: rgba(250, 82, 82, 0.2);
+            box-shadow: 0 0 0 6px rgba(250, 82, 82, 0.5);
+            animation: pulse-alert 1s infinite alternate;
+        }
+        .circ-error {
+            border-color: var(--color-error);
+            border-style: dashed;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes breathe { 
+            0% { transform: scale(0.95); opacity: 0.8; }
+            100% { transform: scale(1.05); opacity: 1; }
+        }
+        @keyframes pulse-alert {
+            0% { transform: scale(1); box-shadow: 0 0 0 4px rgba(250, 82, 82, 0.3); }
+            100% { transform: scale(1.1); box-shadow: 0 0 0 12px rgba(250, 82, 82, 0.1); }
+        }
+        @keyframes pulse-op { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 2rem;
+            font-size: 0.85rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .control-group label {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+
+        select, input[type="number"] {
+            padding: 0.4rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface);
+            font-family: var(--font-ui);
+            font-size: 0.85rem;
+            color: var(--text-main);
+            outline: none;
+        }
+        
+        select:focus, input[type="number"]:focus { border-color: var(--text-muted); }
+
+        .threshold-group {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            accent-color: var(--text-main);
+        }
+
+        .threshold-value {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            min-width: 60px;
+        }
+
+        /* Actions */
+        .actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        button {
+            padding: 0.6rem 1.2rem;
+            border: 1px solid var(--text-main);
+            background: transparent;
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--text-main);
+            color: var(--surface);
+        }
+
+        button:disabled {
+            border-color: var(--border);
+            color: var(--color-inactive);
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--text-main);
+            color: var(--surface);
+        }
+        button.primary:hover:not(:disabled) {
+            background: #000;
+        }
+        button.alert-btn {
+            background: var(--color-alert);
+            border-color: var(--color-alert);
+            color: white;
+        }
+        button.alert-btn:hover:not(:disabled) { background: #e03131; }
+
+        /* Chart Section */
+        .chart-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            height: 200px;
+            position: relative;
+        }
+        
+        .chart-header {
+            position: absolute;
+            top: 1rem;
+            left: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            z-index: 10;
+        }
+
+        /* Table Section */
+        .events-section {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            max-height: 300px;
+        }
+
+        .events-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .events-header h2 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .table-container {
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            flex: 1;
+            font-size: 0.85rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: var(--bg);
+            padding: 0.5rem 1rem;
+            position: sticky;
+            top: 0;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        td {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono);
+        }
+
+        tr:last-child td { border-bottom: none; }
+        
+        .tr-alert { background-color: rgba(250, 82, 82, 0.05); }
+
+        .export-btn {
+            font-size: 0.75rem;
+            padding: 0.4rem 0.8rem;
+        }
+
+        /* Status & Hidden */
+        .status-msg {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            min-height: 1.2rem;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Memory Info */
+        .memory-info {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            text-align: right;
+            font-family: var(--font-mono);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header>
+            <h1>SENTINEL</h1>
+            <div class="mode-toggle">
+                <span>LIVRE</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="mode-switch">
+                    <span class="slider"></span>
+                </label>
+                <span>ALERTA</span>
+            </div>
+        </header>
+
+        <!-- MAIN AREA -->
+        <div class="display-area">
+            
+            <div class="circle-container">
+                <div id="indicator" class="indicator-circle circ-inactive">
+                    <span id="indicator-text" class="hidden"></span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="camera-select">Câmera</label>
+                    <select id="camera-select"></select>
+                </div>
+                <div class="control-group">
+                    <label for="method-select">Método</label>
+                    <select id="method-select">
+                        <option value="hash">Hash de Frame</option>
+                        <option value="luminance">Luminância</option>
+                        <option value="spectrum">Espectro de Cores</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="interval-select">Intervalo</label>
+                    <select id="interval-select">
+                        <option value="100">100ms</option>
+                        <option value="250">250ms</option>
+                        <option value="500" selected>500ms</option>
+                        <option value="1000">1s</option>
+                        <option value="2000">2s</option>
+                        <option value="5000">5s</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="calib-time">Calibração (s)</label>
+                    <input type="number" id="calib-time" min="3" max="30" value="5">
+                </div>
+            </div>
+
+            <div class="threshold-group">
+                <label for="threshold-slider" style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Limiar</label>
+                <input type="range" id="threshold-slider" min="0" max="100" value="50" disabled>
+                <span id="threshold-value" class="threshold-value">--</span>
+            </div>
+
+            <div class="actions">
+                <button id="btn-start-calib">Iniciar Calibração</button>
+                <button id="btn-start-monitor" class="primary hidden">Iniciar Monitoramento</button>
+                <button id="btn-stop" class="hidden">Parar</button>
+                <button id="btn-resume" class="alert-btn hidden">Confirmar / Retomar</button>
+            </div>
+            
+            <div id="status-text" class="status-msg">Aguardando início...</div>
+        </div>
+
+        <!-- CHART -->
+        <div class="chart-section">
+            <div class="chart-header">Variância</div>
+            <canvas id="variance-chart"></canvas>
+        </div>
+
+        <!-- EVENTS -->
+        <div class="events-section">
+            <div class="events-header">
+                <h2>Eventos Detectados</h2>
+                <div>
+                    <button id="btn-export" class="export-btn" disabled>Exportar ZIP ↓</button>
+                    <div id="memory-counter" class="memory-info">0/100 frames (0MB)</div>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="events-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Método</th>
+                            <th>Variância</th>
+                            <th>Frame</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Linhas geradas dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Elementos Invisíveis de Processamento -->
+    <video id="hidden-video" class="hidden" autoplay playsinline muted></video>
+    <canvas id="process-canvas" class="hidden"></canvas>
+    <canvas id="capture-canvas" class="hidden"></canvas>
+
+    <script>
+        /**
+         * UTILITÁRIOS
+         */
+        const padZ = (num, len = 2) => String(num).padStart(len, '0');
+        const formatTime = (date) => {
+            return `${date.getFullYear()}-${padZ(date.getMonth() + 1)}-${padZ(date.getDate())} ` +
+                   `${padZ(date.getHours())}:${padZ(date.getMinutes())}:${padZ(date.getSeconds())}.${padZ(date.getMilliseconds(), 3)}`;
+        };
+        const formatFileTime = (date) => {
+            return `${date.getFullYear()}-${padZ(date.getMonth() + 1)}-${padZ(date.getDate())}_` +
+                   `${padZ(date.getHours())}${padZ(date.getMinutes())}${padZ(date.getSeconds())}-${padZ(date.getMilliseconds(), 3)}`;
+        };
+
+        /**
+         * GERENCIADOR DE CÂMERA
+         */
+        class CameraManager {
+            constructor(videoId, processCanvasId, captureCanvasId) {
+                this.video = document.getElementById(videoId);
+                this.processCanvas = document.getElementById(processCanvasId);
+                this.processCtx = this.processCanvas.getContext('2d', { willReadFrequently: true });
+                this.captureCanvas = document.getElementById(captureCanvasId);
+                this.captureCtx = this.captureCanvas.getContext('2d');
+                this.stream = null;
+                
+                // Resolução baixa para a análise de métodos
+                this.processSize = { w: 32, h: 32 }; 
+            }
+
+            async listCameras() {
+                try {
+                    await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    return devices.filter(d => d.kind === 'videoinput');
+                } catch (e) {
+                    console.error("Erro ao listar câmeras", e);
+                    throw e;
+                }
+            }
+
+            async start(deviceId = null) {
+                if (this.stream) this.stop();
+                
+                const constraints = {
+                    video: deviceId ? { deviceId: { exact: deviceId } } : true,
+                    audio: false
+                };
+
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    this.video.srcObject = this.stream;
+                    return new Promise((resolve) => {
+                        this.video.onloadedmetadata = () => {
+                            this.video.play();
+                            // Ajusta o canvas de captura para o tamanho real do frame
+                            this.captureCanvas.width = this.video.videoWidth;
+                            this.captureCanvas.height = this.video.videoHeight;
+                            // Ajusta o canvas de processamento (pequeno)
+                            this.processCanvas.width = this.processSize.w;
+                            this.processCanvas.height = this.processSize.h;
+                            resolve(true);
+                        };
+                    });
+                } catch (e) {
+                    console.error("Erro ao acessar câmera", e);
+                    throw e;
+                }
+            }
+
+            stop() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(t => t.stop());
+                    this.video.srcObject = null;
+                    this.stream = null;
+                }
+            }
+
+            getAnalysisFrameData() {
+                if (!this.stream || this.video.videoWidth === 0) return null;
+                this.processCtx.drawImage(this.video, 0, 0, this.processSize.w, this.processSize.h);
+                return this.processCtx.getImageData(0, 0, this.processSize.w, this.processSize.h).data;
+            }
+
+            captureFullFrame() {
+                if (!this.stream || this.video.videoWidth === 0) return null;
+                this.captureCtx.drawImage(this.video, 0, 0, this.captureCanvas.width, this.captureCanvas.height);
+                // Extrai em JPEG qualidade 0.7 para economizar RAM
+                return this.captureCanvas.toDataURL('image/jpeg', 0.7);
+            }
+        }
+
+        /**
+         * MÉTODOS DE ANÁLISE
+         */
+        class Analyzer {
+            static getMethodConfig(methodName) {
+                const configs = {
+                    'hash': { sliderMax: 200, defaultThresh: 25 },
+                    'luminance': { sliderMax: 255, defaultThresh: 15 },
+                    'spectrum': { sliderMax: 442, defaultThresh: 30 } // Max eulicidian distance in RGB is ~441.6
+                };
+                return configs[methodName];
+            }
+
+            // --- Luminance ---
+            static computeLuminance(imageData) {
+                let lumSum = 0;
+                let pixels = imageData.length / 4;
+                for (let i = 0; i < imageData.length; i += 4) {
+                    // Rec.601
+                    lumSum += (0.299 * imageData[i] + 0.587 * imageData[i+1] + 0.114 * imageData[i+2]);
+                }
+                return lumSum / pixels;
+            }
+
+            static diffLuminance(current, baseline) {
+                return Math.abs(current - baseline);
+            }
+
+            // --- Spectrum ---
+            static computeSpectrum(imageData) {
+                let rSum = 0, gSum = 0, bSum = 0;
+                let pixels = imageData.length / 4;
+                for (let i = 0; i < imageData.length; i += 4) {
+                    rSum += imageData[i];
+                    gSum += imageData[i+1];
+                    bSum += imageData[i+2];
+                }
+                return { r: rSum/pixels, g: gSum/pixels, b: bSum/pixels };
+            }
+
+            static diffSpectrum(current, baseline) {
+                const dR = current.r - baseline.r;
+                const dG = current.g - baseline.g;
+                const dB = current.b - baseline.b;
+                return Math.sqrt(dR*dR + dG*dG + dB*dB);
+            }
+
+            // --- Frame Hash (simplified diff approach) ---
+            static computeHash(imageData) {
+                // Convert to grayscale first array
+                let gray = [];
+                for (let i = 0; i < imageData.length; i += 4) {
+                    gray.push(Math.round(0.299 * imageData[i] + 0.587 * imageData[i+1] + 0.114 * imageData[i+2]));
+                }
+                return gray;
+            }
+
+            static diffHash(current, baseline) {
+                // Mean Absolute Error over the low-res grayscale pixels
+                let diffSum = 0;
+                for (let i = 0; i < current.length; i++) {
+                    diffSum += Math.abs(current[i] - baseline[i]);
+                }
+                return diffSum / current.length;
+            }
+
+            // Helper genérico para calcular e obter a diff
+            static compute(method, imageData) {
+                if (method === 'luminance') return this.computeLuminance(imageData);
+                if (method === 'spectrum') return this.computeSpectrum(imageData);
+                if (method === 'hash') return this.computeHash(imageData);
+                return 0;
+            }
+
+            static diff(method, current, baseline) {
+                if (method === 'luminance') return this.diffLuminance(current, baseline);
+                if (method === 'spectrum') return this.diffSpectrum(current, baseline);
+                if (method === 'hash') return this.diffHash(current, baseline);
+                return 0;
+            }
+        }
+
+        /**
+         * ARMAZENAMENTO DA SESSÃO
+         */
+        class SessionData {
+            constructor() {
+                this.events = [];
+                this.maxFrames = 100;
+                this.framesStorage = new Map(); // key = id
+            }
+
+            addEvent(method, variance, frameBase64) {
+                const date = new Date();
+                const id = date.getTime() + Math.floor(Math.random() * 1000);
+                const event = {
+                    id: id,
+                    timestamp: date,
+                    timeStr: formatTime(date),
+                    fileTimeStr: formatFileTime(date),
+                    method: method,
+                    variance: variance,
+                    hasFrame: !!frameBase64
+                };
+
+                this.events.unshift(event); // mais recente 1º
+
+                if (frameBase64) {
+                    this.framesStorage.set(id, frameBase64);
+                    // Aplica limite FIFO
+                    if (this.framesStorage.size > this.maxFrames) {
+                        // Encontra o frame mais antigo armazenado
+                        const oldestEvent = this.events.slice().reverse().find(e => this.framesStorage.has(e.id));
+                        if (oldestEvent) {
+                            this.framesStorage.delete(oldestEvent.id);
+                            oldestEvent.hasFrame = false; // marca como expirado
+                        }
+                    }
+                }
+                return event;
+            }
+
+            clear() {
+                this.events = [];
+                this.framesStorage.clear();
+            }
+
+            getMemoryEstimateMB() {
+                // Estimate: Base64 length * 0.75 (bytes) / 1024 / 1024
+                let bytes = 0;
+                for (let val of this.framesStorage.values()) {
+                    bytes += val.length * 0.75;
+                }
+                return (bytes / (1024 * 1024)).toFixed(1);
+            }
+
+            async generateZip() {
+                if (!window.JSZip) {
+                    alert("A biblioteca JSZip não está disponível. Conecte-se à internet na primeira execução para carregá-la ou tente novamente.");
+                    return null;
+                }
+
+                const zip = new JSZip();
+                
+                // CSV
+                let csvContent = "timestamp,metodo,variancia,frame_capturado\n";
+                // reverse para exportar cronológico (do mais antigo pro mais novo)
+                [...this.events].reverse().forEach(e => {
+                    csvContent += `"${e.timeStr}","${e.method}",${e.variance.toFixed(4)},${e.hasFrame ? 'sim' : 'nao'}\n`;
+                });
+                zip.file("relatorio.csv", csvContent);
+
+                // Frames
+                const framesFolder = zip.folder("frames");
+                for (let [id, base64] of this.framesStorage.entries()) {
+                    const event = this.events.find(e => e.id === id);
+                    if (event) {
+                        const filename = `${event.fileTimeStr}_${event.method}.jpg`;
+                        // Remove "data:image/jpeg;base64," header
+                        const base64Data = base64.replace(/^data:image\/(png|jpeg);base64,/, "");
+                        framesFolder.file(filename, base64Data, {base64: true});
+                    }
+                }
+
+                return await zip.generateAsync({type:"blob"});
+            }
+        }
+
+        /**
+         * CONTROLADOR DE CONTEXTO E UI
+         */
+        class App {
+            constructor() {
+                this.state = 'INACTIVE'; // INACTIVE, CALIBRATING, READY, MONITORING, ALERT
+                
+                this.camManager = new CameraManager('hidden-video', 'process-canvas', 'capture-canvas');
+                this.session = new SessionData();
+                this.chart = null;
+
+                // Elements
+                this.els = {
+                    circle: document.getElementById('indicator'),
+                    circleText: document.getElementById('indicator-text'),
+                    cameraSelect: document.getElementById('camera-select'),
+                    methodSelect: document.getElementById('method-select'),
+                    intervalSelect: document.getElementById('interval-select'),
+                    calibTime: document.getElementById('calib-time'),
+                    modeSwitch: document.getElementById('mode-switch'),
+                    
+                    slider: document.getElementById('threshold-slider'),
+                    sliderVal: document.getElementById('threshold-value'),
+                    
+                    btnCalib: document.getElementById('btn-start-calib'),
+                    btnMonitor: document.getElementById('btn-start-monitor'),
+                    btnStop: document.getElementById('btn-stop'),
+                    btnResume: document.getElementById('btn-resume'),
+                    btnExport: document.getElementById('btn-export'),
+                    
+                    statusText: document.getElementById('status-text'),
+                    memCounter: document.getElementById('memory-counter'),
+                    tableBody: document.querySelector('#events-table tbody'),
+                    chartCanvas: document.getElementById('variance-chart')
+                };
+
+                // runtime variables
+                this.baselineValue = null;
+                this.threshold = 50;
+                this.activeMethod = 'hash';
+                this.intervalMs = 500;
+                this.isAlertMode = false;
+                this.intervalId = null;
+                this.chartDataHistory = [];
+
+                this.bindEvents();
+                this.initChart();
+                this.loadCameras();
+            }
+
+            async loadCameras() {
+                try {
+                    const devices = await this.camManager.listCameras();
+                    this.els.cameraSelect.innerHTML = '';
+                    devices.forEach((d, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = d.deviceId;
+                        opt.text = d.label || `Câmera ${i+1}`;
+                        this.els.cameraSelect.appendChild(opt);
+                    });
+                } catch (e) {
+                    this.setCircleState('error', 'Sem Permissão');
+                }
+            }
+
+            bindEvents() {
+                this.els.btnCalib.addEventListener('click', () => this.startCalibration());
+                this.els.btnMonitor.addEventListener('click', () => this.startMonitoring());
+                this.els.btnStop.addEventListener('click', () => this.stopApp());
+                this.els.btnResume.addEventListener('click', () => this.resumeFromAlert());
+                this.els.btnExport.addEventListener('click', () => this.exportArchive());
+                
+                this.els.slider.addEventListener('input', (e) => {
+                    this.threshold = parseFloat(e.target.value);
+                    this.els.sliderVal.textContent = this.threshold.toFixed(2);
+                });
+
+                this.els.modeSwitch.addEventListener('change', (e) => {
+                    this.isAlertMode = e.target.checked;
+                });
+
+                this.els.methodSelect.addEventListener('change', (e) => {
+                    this.updateSliderLimits(e.target.value);
+                    if (this.state === 'READY') {
+                        // Reseta para recalibrar
+                        this.stopApp();
+                    }
+                });
+            }
+
+            updateSliderLimits(method) {
+                const config = Analyzer.getMethodConfig(method);
+                this.els.slider.max = config.sliderMax;
+                // keep current value if within bounds, else adjust
+                if (this.els.slider.value > config.sliderMax) {
+                    this.els.slider.value = config.sliderMax;
+                    this.els.sliderVal.textContent = config.sliderMax;
+                }
+            }
+
+            initChart() {
+                if (!window.Chart) {
+                    console.warn("Chart.js não carregado.");
+                    return;
+                }
+                this.chart = new Chart(this.els.chartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Variância',
+                                data: [],
+                                borderColor: 'rgba(33, 37, 41, 0.8)',
+                                backgroundColor: 'rgba(33, 37, 41, 0.1)',
+                                borderWidth: 1.5,
+                                fill: true,
+                                tension: 0.1,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'Limiar',
+                                data: [],
+                                borderColor: 'rgba(250, 82, 82, 0.5)',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
+                                fill: false,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 0 }, // no animation for smooth stream
+                        scales: {
+                            y: { beginAtZero: true },
+                            x: { display: false }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            updateChart(varianceObj, updateLabels = true) {
+                if (!this.chart) return;
+                
+                const time = formatTime(new Date()).split(' ')[1];
+                if (updateLabels) this.chart.data.labels.push(time);
+                
+                this.chart.data.datasets[0].data.push(varianceObj.var);
+                this.chart.data.datasets[1].data.push(varianceObj.thresh);
+                
+                // Keep history limited to last 100 updates
+                if (this.chart.data.labels.length > 100) {
+                    this.chart.data.labels.shift();
+                    this.chart.data.datasets[0].data.shift();
+                    this.chart.data.datasets[1].data.shift();
+                }
+                
+                this.chart.update('none'); // fast update
+            }
+
+            setCircleState(stateStr, text = "") {
+                this.els.circle.className = `indicator-circle circ-${stateStr}`;
+                if (stateStr === 'calibrating') {
+                    this.els.circle.innerHTML = `<span class="circ-calibrating-inner">${text}</span>`;
+                } else if (text) {
+                    this.els.circle.innerHTML = `<span>${text}</span>`;
+                } else {
+                    this.els.circle.innerHTML = '';
+                }
+            }
+
+            updateStatus(msg) {
+                this.els.statusText.textContent = msg;
+            }
+
+            uiSetSetupMode() {
+                this.els.btnCalib.classList.remove('hidden');
+                this.els.btnMonitor.classList.add('hidden');
+                this.els.btnStop.classList.add('hidden');
+                this.els.btnResume.classList.add('hidden');
+                this.els.slider.disabled = true;
+                
+                this.els.methodSelect.disabled = false;
+                this.els.cameraSelect.disabled = false;
+                this.els.intervalSelect.disabled = false;
+            }
+
+            uiSetReadyMode() {
+                this.els.btnCalib.classList.add('hidden');
+                this.els.btnMonitor.classList.remove('hidden');
+                this.els.btnStop.classList.remove('hidden');
+                this.els.slider.disabled = false;
+            }
+
+            uiSetMonitoringMode() {
+                this.els.btnMonitor.classList.add('hidden');
+                this.els.btnStop.classList.remove('hidden');
+                this.els.btnResume.classList.add('hidden');
+                
+                this.els.methodSelect.disabled = true;
+                this.els.cameraSelect.disabled = true;
+                this.els.intervalSelect.disabled = true;
+            }
+
+            uiSetAlertMode() {
+                this.els.btnStop.classList.remove('hidden');
+                this.els.btnResume.classList.remove('hidden');
+            }
+
+            async startCalibration() {
+                this.activeMethod = this.els.methodSelect.value;
+                this.intervalMs = parseInt(this.els.intervalSelect.value);
+                const calibSeconds = parseInt(this.els.calibTime.value) || 5;
+                const camId = this.els.cameraSelect.value;
+
+                this.updateSliderLimits(this.activeMethod);
+                this.state = 'CALIBRATING';
+                this.uiSetSetupMode();
+                this.els.btnCalib.disabled = true;
+                this.updateStatus('Acessando câmera...');
+
+                try {
+                    await this.camManager.start(camId);
+                } catch (e) {
+                    this.setCircleState('error');
+                    this.updateStatus('Erro na câmera. Verifique permissões.');
+                    this.els.btnCalib.disabled = false;
+                    this.state = 'INACTIVE';
+                    return;
+                }
+
+                this.setCircleState('calibrating', `${calibSeconds}s`);
+                this.updateStatus('Coletando amostras para baseline...');
+
+                const samples = [];
+                let ticks = 0;
+                const maxTicks = Math.floor((calibSeconds * 1000) / this.intervalMs);
+
+                const inter = setInterval(() => {
+                    const fData = this.camManager.getAnalysisFrameData();
+                    if (fData) {
+                        const val = Analyzer.compute(this.activeMethod, fData);
+                        samples.push(val);
+                    }
+                    
+                    ticks++;
+                    let remain = Math.ceil(((maxTicks - ticks) * this.intervalMs) / 1000);
+                    this.setCircleState('calibrating', `${remain}s`);
+
+                    if (ticks >= maxTicks) {
+                        clearInterval(inter);
+                        this.finishCalibration(samples);
+                    }
+                }, this.intervalMs);
+            }
+
+            finishCalibration(samples) {
+                if (samples.length === 0) {
+                    this.stopApp();
+                    this.updateStatus('Erro: Nenhuma amostra capturada.');
+                    return;
+                }
+
+                // Compute Baseline depending on type
+                if (this.activeMethod === 'spectrum') {
+                    // spectrum uses vector mean
+                    let sumR=0, sumG=0, sumB=0;
+                    samples.forEach(s => { sumR+=s.r; sumG+=s.g; sumB+=s.b; });
+                    this.baselineValue = { r: sumR/samples.length, g: sumG/samples.length, b: sumB/samples.length };
+                } else if (this.activeMethod === 'hash') {
+                    // hash is an array of luminosities
+                    let sumArr = new Array(samples[0].length).fill(0);
+                    samples.forEach(s => {
+                        for(let i=0; i<s.length; i++) sumArr[i] += s[i];
+                    });
+                    this.baselineValue = sumArr.map(v => v / samples.length);
+                } else {
+                    // scalar
+                    this.baselineValue = samples.reduce((a,b)=>a+b, 0) / samples.length;
+                }
+
+                // Compute Suggested Threshold (Variance of samples from mean)
+                let variances = samples.map(s => Analyzer.diff(this.activeMethod, s, this.baselineValue));
+                let meanVar = variances.reduce((a,b)=>a+b,0) / variances.length;
+                let varSq = variances.reduce((a,b)=>a + Math.pow(b - meanVar, 2), 0);
+                let stdDev = Math.sqrt(varSq / variances.length);
+
+                let suggestedThresh = meanVar + (stdDev * 3);
+                
+                // fallback se não houver variação
+                if (suggestedThresh < 1) suggestedThresh = Analyzer.getMethodConfig(this.activeMethod).defaultThresh;
+
+                this.threshold = parseFloat(suggestedThresh.toFixed(1));
+                this.els.slider.value = this.threshold;
+                this.els.sliderVal.textContent = this.threshold.toFixed(2);
+
+                this.state = 'READY';
+                this.setCircleState('inactive');
+                this.uiSetReadyMode();
+                this.els.btnCalib.disabled = false;
+                this.updateStatus('Calibração concluída. Verifique o limiar e inicie.');
+            }
+
+            startMonitoring() {
+                this.state = 'MONITORING';
+                this.uiSetMonitoringMode();
+                this.setCircleState('stable');
+                this.updateStatus('Monitorando...');
+
+                if (this.chart) {
+                    this.chart.data.labels = [];
+                    this.chart.data.datasets[0].data = [];
+                    this.chart.data.datasets[1].data = [];
+                    this.chart.update();
+                }
+
+                this.intervalId = setInterval(() => {
+                    this.processFrame();
+                }, this.intervalMs);
+            }
+
+            processFrame() {
+                const fData = this.camManager.getAnalysisFrameData();
+                if (!fData) return;
+
+                const currentVal = Analyzer.compute(this.activeMethod, fData);
+                const variance = Analyzer.diff(this.activeMethod, currentVal, this.baselineValue);
+
+                this.updateChart({ var: variance, thresh: this.threshold });
+
+                if (variance > this.threshold) {
+                    this.handleDetection(variance);
+                }
+            }
+
+            handleDetection(variance) {
+                // Grab frame immediately
+                const frameSrc = this.camManager.captureFullFrame();
+                const evt = this.session.addEvent(this.activeMethod, variance, frameSrc);
+
+                this.updateTable(evt, this.isAlertMode);
+                this.updateMemoryCounter();
+
+                if (this.isAlertMode) {
+                    // Modo Alerta
+                    this.state = 'ALERT';
+                    clearInterval(this.intervalId);
+                    this.setCircleState('alert');
+                    this.uiSetAlertMode();
+                    this.updateStatus('ALERTA: Variação detectada! Monitoramento pausado.');
+                } else {
+                    // Modo Livre
+                    this.setCircleState('detect');
+                    // Retorna para stable visual via CSS timeout
+                    setTimeout(() => {
+                        if (this.state === 'MONITORING') this.setCircleState('stable');
+                    }, 400);
+                }
+            }
+
+            resumeFromAlert() {
+                this.state = 'MONITORING';
+                this.setCircleState('stable');
+                this.uiSetMonitoringMode();
+                this.updateStatus('Monitorando...');
+                
+                // Clear any visual alert rows highlight if desired
+                const rows = this.els.tableBody.querySelectorAll('tr');
+                if (rows.length > 0) rows[0].classList.remove('tr-alert');
+
+                this.intervalId = setInterval(() => {
+                    this.processFrame();
+                }, this.intervalMs);
+            }
+
+            stopApp() {
+                clearInterval(this.intervalId);
+                this.camManager.stop();
+                this.state = 'INACTIVE';
+                this.baselineValue = null;
+                this.uiSetSetupMode();
+                this.setCircleState('inactive');
+                this.updateStatus('Parado. Inicie calibração novamente.');
+            }
+
+            // UI Updaters
+            updateTable(event, isAlert) {
+                const tr = document.createElement('tr');
+                if (isAlert) tr.className = 'tr-alert';
+                
+                tr.innerHTML = `
+                    <td>${event.timeStr}</td>
+                    <td>${event.method}</td>
+                    <td>${event.variance.toFixed(4)}</td>
+                    <td>${event.hasFrame ? 'Sim' : 'Não'}</td>
+                `;
+                
+                this.els.tableBody.prepend(tr);
+                this.els.btnExport.disabled = false;
+            }
+
+            updateMemoryCounter() {
+                const sizes = this.session.framesStorage.size;
+                const mb = this.session.getMemoryEstimateMB();
+                this.els.memCounter.textContent = `${sizes}/${this.session.maxFrames} frames (~${mb}MB)`;
+            }
+
+            async exportArchive() {
+                const btn = this.els.btnExport;
+                btn.disabled = true;
+                const origText = btn.textContent;
+                btn.textContent = 'Gerando...';
+
+                try {
+                    const blob = await this.session.generateZip();
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        // Format: sentinel-data_2024-03-31_143200.zip
+                        a.download = `sentinel-data_${formatFileTime(new Date())}.zip`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                } catch (e) {
+                    console.error("Erro no ZIP", e);
+                    alert("Erro ao gerar o ZIP: " + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                }
+            }
+        }
+
+        // INIT
+        window.addEventListener('DOMContentLoaded', () => {
+            window.app = new App();
+        });
+
+    </script>
+</body>
+</html>
