@@ -25,4 +25,4 @@ Antes ou durante o uso, você pode ajustar as opções:
 
 ## Exportando Dados
 
-Quando finalizar, o histórico de eventos aparecerá numa tabela abaixo. Clicando em **Exportar ZIP** será baixado um arquivo contendo um sumário `.csv` (com dados como momento, método, variância e o nome do arquivo da fotografia correspondente), além de todas as fotografias salvas, contemplando os instantes prévios configurados no pré-buffer e o exato momento em que os picos estatísticos ("eventos") ocorreram.
+Quando finalizar, o histórico de eventos aparecerá numa tabela abaixo. Clicando em **Exportar ZIP** será baixado um arquivo contendo um sumário `.csv` (com dados como momento, método, variância e o caminho/nome do arquivo da fotografia correspondente), além de todas as fotografias salvas. Para melhor organização, os frames capturados em cada evento são agrupados em subpastas individuais (ex: `frames/dump_2024.../`), contemplando os instantes prévios configurados no pré-buffer e o exato momento em que o pico estatístico ("evento") ocorreu.

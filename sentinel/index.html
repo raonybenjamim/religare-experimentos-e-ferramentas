@@ -687,7 +687,7 @@
                 this.framesStorage = new Map(); // key = id
             }
 
-            addEvent(method, variance, frameBase64, explicitDate = null, isPreFrame = false) {
+            addEvent(method, variance, frameBase64, explicitDate = null, isPreFrame = false, groupId = null) {
                 const date = explicitDate || new Date();
                 const id = date.getTime() + Math.floor(Math.random() * 1000);
                 const event = {
@@ -698,7 +698,8 @@
                     method: method,
                     variance: variance,
                     hasFrame: !!frameBase64,
-                    isPreFrame: isPreFrame
+                    isPreFrame: isPreFrame,
+                    groupId: groupId
                 };
 
                 this.events.unshift(event); // mais recente 1º
@@ -744,7 +745,11 @@
                 let csvContent = "timestamp,metodo,variancia,frame_capturado,nome_arquivo\n";
                 // reverse para exportar cronológico (do mais antigo pro mais novo)
                 [...this.events].reverse().forEach(e => {
-                    const filename = e.hasFrame ? `${e.fileTimeStr}_${e.method}.jpg` : "";
+                    let filename = "";
+                    if (e.hasFrame) {
+                        const folderPath = e.groupId ? `frames/${e.groupId}/` : `frames/`;
+                        filename = `${folderPath}${e.fileTimeStr}_${e.method}.jpg`;
+                    }
                     csvContent += `"${e.timeStr}","${e.method}",${e.variance.toFixed(4)},${e.hasFrame ? 'sim' : 'nao'},"${filename}"\n`;
                 });
                 zip.file("relatorio.csv", csvContent);
@@ -757,7 +762,12 @@
                         const filename = `${event.fileTimeStr}_${event.method}.jpg`;
                         // Remove "data:image/jpeg;base64," header
                         const base64Data = base64.replace(/^data:image\/(png|jpeg);base64,/, "");
-                        framesFolder.file(filename, base64Data, {base64: true});
+                        
+                        let targetFolder = framesFolder;
+                        if (event.groupId) {
+                            targetFolder = framesFolder.folder(event.groupId);
+                        }
+                        targetFolder.file(filename, base64Data, {base64: true});
                     }
                 }
 
@@ -1125,15 +1135,17 @@
             }
 
             handleDetection(variance, frameSrc, detectionDate) {
+                const groupId = "dump_" + formatFileTime(detectionDate);
+
                 // 1. Despeja o pre-buffer de frames (antigos)
                 for (let pre of this.frameBuffer) {
-                    const evt = this.session.addEvent(this.activeMethod, pre.variance, pre.frameSrc, pre.date, true);
+                    const evt = this.session.addEvent(this.activeMethod, pre.variance, pre.frameSrc, pre.date, true, groupId);
                     this.updateTable(evt, false); // isAlert = false para pre-frames
                 }
                 this.frameBuffer = []; // Limpa após despejo para evitar duplicação em eventos sequenciais
 
                 // 2. Adiciona o frame atual de detecção (SIM)
-                const evt = this.session.addEvent(this.activeMethod, variance, frameSrc, detectionDate, false);
+                const evt = this.session.addEvent(this.activeMethod, variance, frameSrc, detectionDate, false, groupId);
 
                 this.updateTable(evt, this.isAlertMode);
                 this.updateMemoryCounter();
