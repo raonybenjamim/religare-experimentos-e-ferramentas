@@ -741,10 +741,11 @@
                 const zip = new JSZip();
                 
                 // CSV
-                let csvContent = "timestamp,metodo,variancia,frame_capturado\n";
+                let csvContent = "timestamp,metodo,variancia,frame_capturado,nome_arquivo\n";
                 // reverse para exportar cronológico (do mais antigo pro mais novo)
                 [...this.events].reverse().forEach(e => {
-                    csvContent += `"${e.timeStr}","${e.method}",${e.variance.toFixed(4)},${e.hasFrame ? 'sim' : 'nao'}\n`;
+                    const filename = e.hasFrame ? `${e.fileTimeStr}_${e.method}.jpg` : "";
+                    csvContent += `"${e.timeStr}","${e.method}",${e.variance.toFixed(4)},${e.hasFrame ? 'sim' : 'nao'},"${filename}"\n`;
                 });
                 zip.file("relatorio.csv", csvContent);
 

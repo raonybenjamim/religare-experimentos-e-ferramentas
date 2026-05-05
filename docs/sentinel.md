@@ -18,10 +18,11 @@ Antes ou durante o uso, você pode ajustar as opções:
   - *Espectro de Cores:* Foca em variações cromáticas (mudança brusca nas cores dominantes do cenário).
 - **Intervalo:** Conforme a potência do seu computador, determine o intervalo entra cada checagem (100ms, 500ms, 1s, etc). Valores menores exigem mais processamento, experimente usar 500ms caso trave.
 - **Limiar de Detecção:** Ajuste manual do nível de sensibilidade. Em ambientes instáveis, deixe o limiar maior. Em ambientes perfeitamente controlados, deixe o limiar menor.
+- **Pré-Buffer (frames):** Define a quantidade de frames capturados continuamente em memória antes de uma detecção. Quando um evento de anomalia ocorre, o sistema salva retroativamente esses frames no relatório, oferecendo os registros visuais de como a cena se comportou logo antes do pico.
 - **Modos de Operação:**
   - *Livre:* Detecta e continua investigando e salvando os eventos continuamente.
   - *Alerta:* Pausa a checagem no primeiro desvio que cruzar o Limiar para análise manual; exige botão para confirmar e continuar.
 
 ## Exportando Dados
 
-Quando finalizar, o histórico de eventos aparecerá numa tabela abaixo. Clicando em **Exportar ZIP** será baixado um arquivo contendo um sumário `.csv`, além das fotografias salvas apenas dos exatos momentos em que os picos estatísticos ("eventos") ocorreram.
+Quando finalizar, o histórico de eventos aparecerá numa tabela abaixo. Clicando em **Exportar ZIP** será baixado um arquivo contendo um sumário `.csv` (com dados como momento, método, variância e o nome do arquivo da fotografia correspondente), além de todas as fotografias salvas, contemplando os instantes prévios configurados no pré-buffer e o exato momento em que os picos estatísticos ("eventos") ocorreram.
