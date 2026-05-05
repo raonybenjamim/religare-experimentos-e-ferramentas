@@ -443,6 +443,10 @@
                     <label for="calib-time">Calibração (s)</label>
                     <input type="number" id="calib-time" min="3" max="30" value="5">
                 </div>
+                <div class="control-group">
+                    <label for="pre-buffer">Pré-Buffer (frames)</label>
+                    <input type="number" id="pre-buffer" min="0" max="10" value="5">
+                </div>
             </div>
 
             <div class="threshold-group">
@@ -683,8 +687,8 @@
                 this.framesStorage = new Map(); // key = id
             }
 
-            addEvent(method, variance, frameBase64) {
-                const date = new Date();
+            addEvent(method, variance, frameBase64, explicitDate = null, isPreFrame = false) {
+                const date = explicitDate || new Date();
                 const id = date.getTime() + Math.floor(Math.random() * 1000);
                 const event = {
                     id: id,
@@ -693,7 +697,8 @@
                     fileTimeStr: formatFileTime(date),
                     method: method,
                     variance: variance,
-                    hasFrame: !!frameBase64
+                    hasFrame: !!frameBase64,
+                    isPreFrame: isPreFrame
                 };
 
                 this.events.unshift(event); // mais recente 1º
@@ -803,6 +808,7 @@
                 this.isAlertMode = false;
                 this.intervalId = null;
                 this.chartDataHistory = [];
+                this.frameBuffer = []; // Buffer para frames anteriores
 
                 this.bindEvents();
                 this.initChart();
@@ -1071,6 +1077,8 @@
                 this.setCircleState('stable');
                 this.updateStatus('Monitorando...');
 
+                this.frameBuffer = []; // Limpa o buffer de frames anteriores ao iniciar
+
                 if (this.chart) {
                     this.chart.data.labels = [];
                     this.chart.data.datasets[0].data = [];
@@ -1092,15 +1100,39 @@
 
                 this.updateChart({ var: variance, thresh: this.threshold });
 
+                // Extrai o frame atual continuamente para o pre-buffer
+                const frameSrc = this.camManager.captureFullFrame();
+                const now = new Date();
+
                 if (variance > this.threshold) {
-                    this.handleDetection(variance);
+                    this.handleDetection(variance, frameSrc, now);
+                } else {
+                    // Guarda no buffer circular se for abaixo do limiar (normal)
+                    const preBufferSize = parseInt(document.getElementById('pre-buffer')?.value || 5);
+                    if (preBufferSize > 0) {
+                        this.frameBuffer.push({
+                            date: now,
+                            variance: variance,
+                            frameSrc: frameSrc
+                        });
+                        // Limita o tamanho do buffer
+                        if (this.frameBuffer.length > preBufferSize) {
+                            this.frameBuffer.shift();
+                        }
+                    }
                 }
             }
 
-            handleDetection(variance) {
-                // Grab frame immediately
-                const frameSrc = this.camManager.captureFullFrame();
-                const evt = this.session.addEvent(this.activeMethod, variance, frameSrc);
+            handleDetection(variance, frameSrc, detectionDate) {
+                // 1. Despeja o pre-buffer de frames (antigos)
+                for (let pre of this.frameBuffer) {
+                    const evt = this.session.addEvent(this.activeMethod, pre.variance, pre.frameSrc, pre.date, true);
+                    this.updateTable(evt, false); // isAlert = false para pre-frames
+                }
+                this.frameBuffer = []; // Limpa após despejo para evitar duplicação em eventos sequenciais
+
+                // 2. Adiciona o frame atual de detecção (SIM)
+                const evt = this.session.addEvent(this.activeMethod, variance, frameSrc, detectionDate, false);
 
                 this.updateTable(evt, this.isAlertMode);
                 this.updateMemoryCounter();
@@ -1151,12 +1183,13 @@
             updateTable(event, isAlert) {
                 const tr = document.createElement('tr');
                 if (isAlert) tr.className = 'tr-alert';
+                if (event.isPreFrame) tr.style.opacity = '0.7'; // feedback visual sutil
                 
                 tr.innerHTML = `
                     <td>${event.timeStr}</td>
                     <td>${event.method}</td>
                     <td>${event.variance.toFixed(4)}</td>
-                    <td>${event.hasFrame ? 'Sim' : 'Não'}</td>
+                    <td>${event.hasFrame ? (event.isPreFrame ? 'Pré' : 'Sim') : 'Não'}</td>
                 `;
                 
                 this.els.tableBody.prepend(tr);
