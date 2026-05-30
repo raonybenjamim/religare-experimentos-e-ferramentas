@@ -364,6 +364,48 @@
         
         .tr-alert { background-color: rgba(250, 82, 82, 0.05); }
 
+        /* Agrupamento de eventos */
+        .tr-detection {
+            background-color: rgba(33, 37, 41, 0.04);
+            border-top: 2px solid var(--border);
+        }
+        .tr-detection td:first-child {
+            font-weight: 600;
+        }
+        .tr-detection-alert {
+            background-color: rgba(250, 82, 82, 0.06);
+            border-top: 2px solid rgba(250, 82, 82, 0.2);
+        }
+        .tr-detection-alert td:first-child {
+            font-weight: 600;
+        }
+        .tr-pre {
+            background-color: transparent;
+        }
+        .tr-pre td {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            padding-top: 0.3rem;
+            padding-bottom: 0.3rem;
+        }
+        .tr-pre td:first-child {
+            padding-left: 2rem;
+        }
+        .tr-pre td:first-child::before {
+            content: "↳ ";
+            opacity: 0.4;
+        }
+        .group-label {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-weight: 400;
+            letter-spacing: 0;
+            margin-top: 0.15rem;
+            opacity: 0.7;
+        }
+
         .export-btn {
             font-size: 0.75rem;
             padding: 0.4rem 0.8rem;
@@ -1137,17 +1179,19 @@
             handleDetection(variance, frameSrc, detectionDate) {
                 const groupId = "dump_" + formatFileTime(detectionDate);
 
-                // 1. Despeja o pre-buffer de frames (antigos)
+                // 1. Registra os pré-frames na sessão (sem adicionar à tabela ainda)
+                const preFrameEvents = [];
                 for (let pre of this.frameBuffer) {
                     const evt = this.session.addEvent(this.activeMethod, pre.variance, pre.frameSrc, pre.date, true, groupId);
-                    this.updateTable(evt, false); // isAlert = false para pre-frames
+                    preFrameEvents.push(evt);
                 }
-                this.frameBuffer = []; // Limpa após despejo para evitar duplicação em eventos sequenciais
+                this.frameBuffer = [];
 
-                // 2. Adiciona o frame atual de detecção (SIM)
+                // 2. Registra o frame de detecção
                 const evt = this.session.addEvent(this.activeMethod, variance, frameSrc, detectionDate, false, groupId);
 
-                this.updateTable(evt, this.isAlertMode);
+                // 3. Renderiza o grupo inteiro de uma vez (detecção + contexto pré)
+                this.updateTable(evt, preFrameEvents, this.isAlertMode);
                 this.updateMemoryCounter();
 
                 if (this.isAlertMode) {
@@ -1193,19 +1237,38 @@
             }
 
             // UI Updaters
-            updateTable(event, isAlert) {
-                const tr = document.createElement('tr');
-                if (isAlert) tr.className = 'tr-alert';
-                if (event.isPreFrame) tr.style.opacity = '0.7'; // feedback visual sutil
-                
-                tr.innerHTML = `
-                    <td>${event.timeStr}</td>
-                    <td>${event.method}</td>
-                    <td>${event.variance.toFixed(4)}</td>
-                    <td>${event.hasFrame ? (event.isPreFrame ? 'Pré' : 'Sim') : 'Não'}</td>
+            // Renderiza um grupo completo (pré-frames + detecção) de uma vez, como bloco único
+            updateTable(detectionEvent, preFrameEvents, isAlert) {
+                const fragment = document.createDocumentFragment();
+
+                // Linha do evento de detecção (cabeçalho do grupo)
+                const trDet = document.createElement('tr');
+                trDet.className = isAlert ? 'tr-detection-alert' : 'tr-detection';
+                trDet.innerHTML = `
+                    <td>
+                        ${detectionEvent.timeStr}
+                        <span class="group-label">${detectionEvent.groupId || ''}</span>
+                    </td>
+                    <td>${detectionEvent.method}</td>
+                    <td>${detectionEvent.variance.toFixed(4)}</td>
+                    <td>${detectionEvent.hasFrame ? 'Sim' : 'Não'}</td>
                 `;
-                
-                this.els.tableBody.prepend(tr);
+                fragment.appendChild(trDet);
+
+                // Linhas dos pré-frames (contexto), em ordem cronológica dentro do grupo
+                for (const pre of [...preFrameEvents].reverse()) {
+                    const trPre = document.createElement('tr');
+                    trPre.className = 'tr-pre';
+                    trPre.innerHTML = `
+                        <td>${pre.timeStr}</td>
+                        <td>${pre.method}</td>
+                        <td>${pre.variance.toFixed(4)}</td>
+                        <td>${pre.hasFrame ? 'Pré' : 'Não'}</td>
+                    `;
+                    fragment.appendChild(trPre);
+                }
+
+                this.els.tableBody.prepend(fragment);
                 this.els.btnExport.disabled = false;
             }
 
